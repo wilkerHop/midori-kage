@@ -1,0 +1,11 @@
+selectors:
+  chat_list:
+    role: "button"
+    aria_label: "Chat list"
+  message_input:
+    role: "textbox"
+    aria_label: "Type a message"
+  send_button:
+    aria_label: "Send"
+  unread_badge:
+    aria_label: "Unread"
