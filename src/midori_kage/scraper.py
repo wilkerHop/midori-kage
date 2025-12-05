@@ -1,12 +1,13 @@
 import asyncio
+import json
 import random
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 import yaml
 from loguru import logger
 from playwright.async_api import Browser, BrowserContext, Page, async_playwright
-from playwright_stealth import stealth
+from playwright_stealth import Stealth
 from pydantic import BaseModel
 
 
@@ -77,7 +78,7 @@ class MidoriKage:
 
         # Apply stealth
         self.page = await self.context.new_page()
-        await stealth(self.page)
+        await Stealth().apply_stealth_async(self.page)
 
         # Navigate to WhatsApp Web
         logger.info("Navigating to WhatsApp Web...")
@@ -111,6 +112,8 @@ class MidoriKage:
             raise ValueError(f"Selector '{key}' not found in config")
 
         parts = []
+        if "css" in attrs:
+            return attrs["css"]
         if "role" in attrs:
             parts.append(f'[role="{attrs["role"]}"]')
         if "aria_label" in attrs:
@@ -143,6 +146,105 @@ class MidoriKage:
             target_y = current_y + (y - current_y) * (i + 1) / steps
             await self.page.mouse.move(target_x, target_y)
             await asyncio.sleep(random.uniform(0.01, 0.05))  # nosec
+
+    async def scrape_chats(self, limit: int = 10):
+        """Scrapes the most recent chats."""
+        logger.info(f"Scraping top {limit} chats...")
+
+        # Wait for chat list to load
+        chat_row_selector = self._build_selector("chat_row")
+        await self.page.wait_for_selector(chat_row_selector, timeout=30000)
+
+        # Get count
+        rows = await self.page.locator(chat_row_selector).all()
+        logger.info(f"Found {len(rows)} visible chat rows.")
+
+        processed = 0
+        for i in range(min(limit, len(rows))):
+            # Re-query to avoid stale elements
+            rows = await self.page.locator(chat_row_selector).all()
+            if i >= len(rows):
+                break
+
+            row = rows[i]
+
+            try:
+                logger.info(f"Processing chat {i + 1}/{limit}...")
+                await row.click()
+                await self.human_delay(1, 2)
+
+                # Scrape messages
+                messages = await self._scrape_current_chat()
+
+                # Get title
+                title_selector = self._build_selector("chat_title")
+                if await self.page.locator(title_selector).count() > 0:
+                    chat_name = await self.page.locator(
+                        title_selector
+                    ).first.inner_text()
+                else:
+                    chat_name = f"chat_{i}"
+
+                # Sanitize filename
+                safe_name = "".join(
+                    [c for c in chat_name if c.isalpha() or c.isdigit() or c == " "]
+                ).strip()
+                if not safe_name:
+                    safe_name = f"chat_{i}"
+
+                logger.info(f"Scraped {len(messages)} messages from '{safe_name}'")
+                self._save_chat_history(safe_name, messages)
+
+                processed += 1
+
+            except Exception as e:
+                logger.error(f"Error scraping chat {i}: {e}")
+
+            # Random delay between chats
+            await self.human_delay(2, 4)
+
+    async def _scrape_current_chat(self) -> List[Dict[str, str]]:
+        """Scrapes messages from the currently open chat."""
+        msg_selector = self._build_selector("message_bubble")
+        # Give a little time for messages to render
+        await asyncio.sleep(1)
+
+        msgs = await self.page.locator(msg_selector).all()
+        data = []
+
+        text_sel = self._build_selector("message_text")
+        info_sel = self._build_selector("message_info")
+
+        for msg in msgs:
+            try:
+                # Extract text
+                text = ""
+                if await msg.locator(text_sel).count() > 0:
+                    text = await msg.locator(text_sel).inner_text()
+
+                # Extract info (time/sender)
+                info = ""
+                if await msg.locator(info_sel).count() > 0:
+                    info = (
+                        await msg.locator(info_sel).get_attribute("data-pre-plain-text")
+                        or ""
+                    )
+
+                if text or info:
+                    data.append({"info": info.strip(), "text": text.strip()})
+            except Exception:
+                continue
+
+        return data
+
+    def _save_chat_history(self, chat_name: str, messages: List[Dict]):
+        """Saves chat messages to a JSON file."""
+        chats_dir = Path("chats")
+        chats_dir.mkdir(exist_ok=True)
+
+        file_path = chats_dir / f"{chat_name}.json"
+        with open(file_path, "w", encoding="utf-8") as f:
+            json.dump(messages, f, ensure_ascii=False, indent=2)
 
     async def close(self):
         if self.context:

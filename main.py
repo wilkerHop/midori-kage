@@ -28,10 +28,19 @@ async def run_scraper(args):
         # For now, we just keep it open for a bit or until interrupted
         logger.info("Scraper running. Press Ctrl+C to stop.")
 
+        if args.scrape_chats:
+            await scraper.scrape_chats(limit=args.limit)
+            return
+
         if args.scrape_contacts:
             logger.info("Scraping contacts feature not yet implemented.")
+            return
 
         # Keep alive loop
+        logger.info(
+            "No specific action requested. "
+            "Running in interactive mode (Ctrl+C to stop)."
+        )
         while True:
             await asyncio.sleep(1)
 
@@ -50,6 +59,9 @@ def main():
     )
     parser.add_argument(
         "--scrape-contacts", action="store_true", help="Scrape contacts list"
+    )
+    parser.add_argument(
+        "--scrape-chats", action="store_true", help="Scrape chat history"
     )
     parser.add_argument(
         "--limit", type=int, default=50, help="Limit number of items to scrape"

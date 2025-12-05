@@ -40,3 +40,6 @@ venv.bak/
 session/
 logs/
 *.log
+
+# Chats
+chats/

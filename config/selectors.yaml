@@ -9,3 +9,17 @@ selectors:
     aria_label: "Send"
   unread_badge:
     aria_label: "Unread"
+  chat_row:
+    role: "row"
+  message_bubble:
+    css: "div[role='row']"  # Messages are often rows too in recent updates, or we fallback to class in code if needed.
+    # Actually, let's use a class-based one for now as it's more distinct if role is same
+    # But wait, keeping "robust" requirement.
+    # Recent WA Web uses role="row" for messages too inside the main region?
+    # Let's try to target the message container first.
+  message_text:
+    css: "span.selectable-text"
+  message_info:
+    css: "div[data-pre-plain-text]"
+  chat_title:
+    css: "header span[title]"
