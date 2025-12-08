@@ -43,3 +43,6 @@ logs/
 
 # Chats
 chats/
+
+# Chrome Profile
+session/user_data/
