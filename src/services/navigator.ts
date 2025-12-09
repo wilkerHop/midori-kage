@@ -2,22 +2,39 @@ import { SELECTORS } from '../config/selectors';
 import { $, $$, normalizeText, sleep } from '../utils/common';
 
 export const findMainElement = (): HTMLElement | null => {
-  // Strategy 1: Anchor on the Visible Input (Proven to work)
+  // Strategy 1: Anchor on the Visible Input
   const input = document.querySelector<HTMLElement>('div[role="textbox"]');
   if (input) {
-      const findParentWithHeader = (el: HTMLElement | null, depth: number): HTMLElement | null => {
-          if (!el || depth > 10) return null;
-          if (el.querySelector(':scope > header') || el.querySelector('header')) return el;
-          return findParentWithHeader(el.parentElement, depth + 1);
+      const findChatPanel = (el: HTMLElement | null, depth: number): HTMLElement | null => {
+          if (!el || depth > 15) return null;
+          
+          const hasHeader = el.querySelector(':scope > header') || el.querySelector('header');
+          if (hasHeader) {
+               // CRITICAL: Ensure we haven't gone too high and captured the sidebar
+               // Sidebar usually has 'Search' or 'Pesquisar' inputs or text near the top
+               // But we are in the chat panel. 
+               // Heuristic: Chat Panel usually has a MESSAGE LIST sibling.
+               const hasMsgList = el.querySelector('div[aria-label="Message list"]');
+               const hasSidebarParams = el.innerText.includes('Pesquisar') || el.innerText.includes('Search');
+               
+               // Ideally, we want the node that Has Header AND Has Message List
+               // AND explicitly does NOT look like the sidebar
+               if (hasMsgList && !hasSidebarParams) return el;
+               
+               // If no message list found yet (Aria label might be gone), 
+               // but we have a header and NO sidebar text, this is a strong candidate for #main.
+               if (hasHeader && !hasSidebarParams) return el;
+          }
+          return findChatPanel(el.parentElement, depth + 1);
       };
       
-      const distinctParent = findParentWithHeader(input.parentElement, 0);
-      if (distinctParent) return distinctParent;
+      const panel = findChatPanel(input.parentElement, 0);
+      if (panel) return panel;
   }
 
   // Strategy 2: Standard #main (Fallback)
   const mainEl = document.querySelector<HTMLElement>('#main');
-  if (mainEl && mainEl.innerText.trim()) return mainEl;
+  if (mainEl) return mainEl;
 
   return null;
 };
@@ -27,7 +44,8 @@ const checkHeader = async (expected: string, attempt: number, maxRetries: number
 
   const mainEl = findMainElement();
   if (mainEl) {
-    const headerTitle = mainEl.querySelector('header span[title]') as HTMLElement;
+    // Try structural path (Header -> H2 -> Span) or Title attribute
+    const headerTitle = mainEl.querySelector('header h2 span') as HTMLElement || mainEl.querySelector('header span[title]') as HTMLElement;
     const topText = headerTitle ? headerTitle.innerText : mainEl.innerText.substring(0, 1000); // Fallback to full text
     
     // Log the specific text we are checking against

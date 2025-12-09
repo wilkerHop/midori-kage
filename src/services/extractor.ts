@@ -99,3 +99,6 @@ export async function getMessages(): Promise<ChatMessage[]> {
         }
     }).filter((msg): msg is ChatMessage => msg !== null);
 }
+// Debug helper
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+(window as any).MidoriExtractor = { getContactInfo, getMessages };
