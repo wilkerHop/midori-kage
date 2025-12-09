@@ -23,7 +23,13 @@ jobs:
       run: npm ci
 
     - name: Run Linting
-      run: npx eslint extension/
+      run: npm run lint
 
-    - name: Run Formatting Check
-      run: npx prettier --check extension/
+    - name: Run Tests
+      run: npm test
+
+    - name: Check Sins (Strict)
+      run: ./scripts/check-sins.sh
+
+    - name: Build Extension
+      run: npm run build
