@@ -12,6 +12,13 @@ fi
 
 # 2. Check for mutability (let/var) is handled by ESLint now!
 
+# 3. Check for empty catches
+# This regex looks for catch followed by optional (error) then { optional whitespace }
+if grep -rE "catch\s*(\(.*\))?\s*\{\s*\}" src/; then
+   echo "Found empty catches! Catches must handle errors or log them."
+   exit 1
+fi
+
 echo "No sins found!"
 
 # 2. Check for large files (>100 lines) - Warning only per user request
