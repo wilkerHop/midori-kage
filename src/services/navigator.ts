@@ -1,8 +1,35 @@
 import { SELECTORS } from '../config/selectors';
 import { $, $$, normalizeText, sleep } from '../utils/common';
+import { Bridge } from './bridge';
+
+export async function selectChat(row: HTMLElement): Promise<boolean> {
+   if (!row) return false;
+   
+   // Try to get identifier from Title attribute or Text
+   const titleSpan = row.querySelector<HTMLElement>(SELECTORS.chat_row + ' span[title]');
+   const identifier = titleSpan ? titleSpan.getAttribute('title') : (row.innerText.split('\n')[0] || '');
+   
+   if (!identifier) {
+       console.warn('[Nav] Could not identify chat row.');
+       return false;
+   }
+   
+   console.log(`[Nav] Attempting to open chat "${identifier}" via Bridge...`);
+   const success = await Bridge.openChat(identifier);
+   
+   if (success) {
+       console.log(`[Nav] Bridge Success for "${identifier}"`);
+       await sleep(500); // Give UI a moment
+       return true;
+   }
+
+   console.warn(`[Nav] Bridge failed for "${identifier}". Falling back to click.`);
+   row.click();
+   await sleep(1000); // Wait for click
+   return true; // Assume click worked for now, validation happens later
+}
 
 export const findMainElement = (): HTMLElement | null => {
-  // Strategy 1: Anchor on the Visible Input
   const input = document.querySelector<HTMLElement>('div[role="textbox"]');
   if (input) {
       const findChatPanel = (el: HTMLElement | null, depth: number): HTMLElement | null => {

@@ -65,29 +65,55 @@ const findModules = (chunk: unknown[]) => {
 
 const setupMidoriApi = () => {
     if (WPP.cmd && WPP.chat) {
-        console.log('[Midori] API Ready. Try window.Midori.openChat("ID")');
+        console.log('[Midori] API Ready. Listening for commands...');
         
-        // Define robust types for internal modules
+        // Robust types
         const Cmd = WPP.cmd as { openChatAt?: (m: unknown) => Promise<boolean>; openChat?: (id: string) => Promise<boolean> };
-        const ChatStore = WPP.chat as { get: (id: string) => unknown };
+        const ChatStore = WPP.chat as { get: (id: string) => unknown; models: Array<{ id: { _serialized: string }; name?: string; formattedTitle?: string; contact?: { name?: string } }> };
 
-        WPP.openChat = async (chatId: string) => {
-            const wid = chatId.includes('@') ? chatId : `${chatId}@c.us`;
-            const chatModel = ChatStore.get(wid);
+        WPP.openChat = async (chatIdOrName: string) => {
+            // 1. Try as direct ID first
+            const initialWid = chatIdOrName.includes('@') ? chatIdOrName : `${chatIdOrName}@c.us`;
+            const initialChatModel = ChatStore.get(initialWid);
+            
+            // 2. If not found, try to find by Name/Title (Scraper mode)
+            const foundModel = !initialChatModel 
+                ? ChatStore.models.find(m => 
+                    m.name === chatIdOrName || 
+                    m.formattedTitle === chatIdOrName || 
+                    m.contact?.name === chatIdOrName
+                 )
+                : undefined;
+
+             if (foundModel) {
+                 console.log(`[Midori] Resolved "${chatIdOrName}" to ${foundModel.id._serialized}`);
+             }
+
+            const finalWid = foundModel ? foundModel.id._serialized : initialWid;
+            const finalChatModel = foundModel || initialChatModel;
             
             if (Cmd.openChatAt) {
-                 console.log(`[Midori] Opening ${wid} via openChatAt...`);
-                 if (chatModel) {
-                     await Cmd.openChatAt(chatModel);
+                 if (finalChatModel) {
+                     await Cmd.openChatAt(finalChatModel);
                      return true;
                  }
             } else if (Cmd.openChat) {
-                await Cmd.openChat(wid);
+                await Cmd.openChat(finalWid);
                 return true;
             }
             return false;
         };
         
+        // Listen for Content Script commands
+        window.addEventListener('message', async (event) => {
+            if (event.data.type === 'MIDORI_CMD_OPEN_CHAT') {
+                const { chatId } = event.data;
+                console.log(`[Midori] Received command to open: ${chatId}`);
+                const success = await WPP.openChat(chatId);
+                window.postMessage({ type: 'MIDORI_CMD_OPEN_CHAT_RESULT', success, chatId }, '*');
+            }
+        });
+
         window.postMessage({ type: 'MIDORI_INJECTION_SUCCESS', payload: 'API Ready' }, '*');
     } else {
         console.warn('[Midori] Cmd module not found in scan.');
