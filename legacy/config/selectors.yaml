@@ -1,0 +1,46 @@
+selectors:
+  chat_list:
+    aria_label: "Chat list"
+    # role: "button" - removed to be more robust, as it might be a div or list
+  message_input:
+    role: "textbox"
+    aria_label: "Type a message"
+  send_button:
+    aria_label: "Send"
+  unread_badge:
+    aria_label: "Unread"
+  chat_row:
+    css: "div[role='row']" # broader than split role/aria
+  message_bubble:
+    css: "div[role='row']"  # Messages are often rows too in recent updates, or we fallback to class in code if needed.
+    # Actually, let's use a class-based one for now as it's more distinct if role is same
+    # But wait, keeping "robust" requirement.
+    # Recent WA Web uses role="row" for messages too inside the main region?
+    # Let's try to target the message container first.
+  message_text:
+    css: "span.selectable-text"
+  message_info:
+    css: "div[data-pre-plain-text]"
+  chat_title:
+    css: "header span[title]"
+  chat_subtitle:
+    css: "header div[role='button'] span[title]" # Often contains 'click here for group info' or member names for groups
+  chat_list_title:
+    css: "span[title]" # Relative to chat_row
+  
+  # Contact Info Drawer Selectors
+  header_title_container:
+    css: "#main header span[title]" # Click the text directly, it works and is unique.
+  contact_drawer:
+    css: "#app > div > div > div:nth-child(2) > div.landing-wrapper-body > div > div > div" # The drawer sliding in from right. This is tricky, often better to wait for a specific reliable child.
+    # Alternatives: "div[title='Contact info']" or similar if present.
+    # Better: Wait for the specific "Close" button or the main "Contact info" header.
+  contact_drawer_close_btn:
+    css: "div[aria-label='Close']"
+  contact_info_name:
+    css: "section span[dir='auto']" # Usually the big name text
+  contact_info_phone:
+    css: "span[aria-label='Phone number']" # Often has aria-label? No, it's usually just text. We might need a heuristic (starts with +)
+    # Actually, often in a section with 'About and phone number'
+  contact_info_about:
+    css: "span[title]" # The 'About' status often has a title attribute overlapping with the text
