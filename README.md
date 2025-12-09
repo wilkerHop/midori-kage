@@ -1,73 +1,52 @@
-# React + TypeScript + Vite
+# 🍃 Midori Kage
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+**Midori Kage** (Green Shadow) is a high-performance, robust WhatsApp Web Scraper and Crawler built as a Chrome Extension. 
 
-Currently, two official plugins are available:
+Unlike traditional scrapers that rely on brittle DOM selectors (`querySelector`), Midori Kage uses **Module Injection** to tap directly into WhatsApp Web's internal Webpack modules (`Store.Msg`, `Cmd.openChatAt`). This ensures lightning-fast navigation and bulletproof data extraction that survives UI updates.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## 🚀 Key Features
 
-## React Compiler
+-   **Module Injection**: Bypasses the UI layer to access internal `Msg` and `Contact` stores directly.
+-   **Bridge Architecture**: A secure message bridge seamlessly connects the Content Script (Extractor) with the Injected Script (Module Access).
+-   **Strict Code Quality**: Enforced by a custom `check-sins.sh` script (No empty catches, file size limits).
+-   **Automated Navigation**: Opens chats programmatically using internal routers.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## 🛠️ Architecture
 
-## Expanding the ESLint configuration
+1.  **Injector (`src/scripts/injector.ts`)**: The entry point that injects the script tag.
+2.  **Module Finder (`src/scripts/module-finder.ts`)**: Scans Webpack chunks to verify and expose internal stores.
+3.  **Midori API (`src/scripts/midori-api.ts`)**: Wraps internal stores into a clean `window.Midori` API.
+4.  **Bridge (`src/services/bridge.ts`)**: Handles async communication between the extension and the injected API.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## 📦 Installation & Usage
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+1.  **Install Dependencies**:
+    ```bash
+    npm install
+    ```
+2.  **Build**:
+    ```bash
+    npm run build
+    ```
+3.  **Load Extension**:
+    -   Open Chrome and go to `chrome://extensions`.
+    -   Enable **Developer Mode**.
+    -   Click **Load Unpacked** and select the `dist` folder.
+4.  **Run**:
+    -   Open WhatsApp Web.
+    -   The extension will automatically inject and start the extraction loop (check Console).
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+## 🛡️ Code Quality ("Sins")
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+We maintain strict standards. Before committing, run:
+```bash
+./scripts/check-sins.sh
 ```
+This ensures:
+-   No `eslint-disable` or `@ts-ignore`.
+-   No empty `catch` blocks.
+-   No large files (>100 lines).
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## ⚠️ Disclaimer
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+This project is for **educational and research purposes only**. It comes with no warranty. Users are responsible for complying with WhatsApp's Terms of Service.

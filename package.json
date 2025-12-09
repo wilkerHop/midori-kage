@@ -1,7 +1,8 @@
 {
-  "name": "temp_vite",
+  "name": "midori-kage",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
+  "description": "Robust WhatsApp Web Crawler using Internal Module Injection",
   "type": "module",
   "scripts": {
     "dev": "vite",
