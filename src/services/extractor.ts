@@ -1,9 +1,10 @@
 import { SELECTORS } from '../config/selectors';
 import { ChatMessage, ContactInfo } from '../types';
-import { $, sleep } from '../utils/common';
+import { sleep } from '../utils/common';
 
 export async function getContactInfo(rawName: string): Promise<ContactInfo> {
-    const header = $(SELECTORS.header_title_container) || $('#main header');
+    // Try specifically the title span first, fallback to generic header
+    const header = document.querySelector<HTMLElement>(SELECTORS.header_title_container);
     if (!header) {
         console.error(`[Extractor] Contact Header NOT found for "${rawName}"`);
         return { name: rawName, about: '', isGroup: false };
@@ -42,8 +43,13 @@ export async function getContactInfo(rawName: string): Promise<ContactInfo> {
 }
 
 const findMessageContainer = (): HTMLElement | null => {
+    // Try primary selector first
     const container = document.querySelector<HTMLElement>(SELECTORS.message_container);
     if (container) return container;
+    
+    // Fallback: finding by Aria Label
+    const ariaMsg = document.querySelector<HTMLElement>('div[aria-label="Message list"]');
+    if (ariaMsg) return ariaMsg;
 
     const input = document.querySelector<HTMLElement>('div[role="textbox"]');
     if (!input) return null;

@@ -25,7 +25,14 @@ const checkHeader = async (expected: string, attempt: number, maxRetries: number
 
   const mainEl = findMainElement();
   if (mainEl) {
-    const topText = mainEl.innerText.substring(0, 1000);
+    const headerTitle = mainEl.querySelector('header span[title]') as HTMLElement;
+    const topText = headerTitle ? headerTitle.innerText : mainEl.innerText.substring(0, 1000); // Fallback to full text
+    
+    // Log the specific text we are checking against
+    if (attempt === maxRetries - 1 && !normalizeText(topText).includes(expected)) {
+         console.warn(`[Nav] Mismatch Details -> Expected: "${expected}" | TopText: "${normalizeText(topText)}" | HeaderTitle: "${headerTitle ? headerTitle.innerText : 'N/A'}"`);
+    }
+
     if (normalizeText(topText).includes(expected)) return true;
   }
 
