@@ -2,18 +2,24 @@ import { SELECTORS } from '../config/selectors';
 import { $, $$, normalizeText, sleep } from '../utils/common';
 
 export const findMainElement = (): HTMLElement | null => {
-  // Strategy 1: Look for the footer/input first (since we know it's visible) and go up
-  const input = document.querySelector<HTMLElement>('footer div[role="textbox"]');
+  // Strategy 1: Anchor on the Visible Input (Proven to work)
+  const input = document.querySelector<HTMLElement>('div[role="textbox"]');
   if (input) {
-      // Traverse up to find the main container (usually a sibling of the footer's parent or part of the same flex column)
-      const footer = input.closest('footer');
-      if (footer && footer.parentElement) {
-          // Log only once per session/call to avoid spam, or rely on caller logs
-          return footer.parentElement; 
+      let parent = input.parentElement;
+      // Traverse up to 10 levels to find the container that holds the header
+      for (let i = 0; i < 10; i++) {
+          if (!parent) break;
+          // The main panel usually contains a <header> and the footer/input
+          const header = parent.querySelector('header');
+          if (header) {
+              // console.log(`[Nav] Found Main Container via Input Traversal (Level ${i})`);
+              return parent;
+          }
+          parent = parent.parentElement;
       }
   }
 
-  // Strategy 2: Standard #main
+  // Strategy 2: Standard #main (Fallback)
   const mainEl = document.querySelector<HTMLElement>('#main');
   if (mainEl && mainEl.innerText.trim()) return mainEl;
 

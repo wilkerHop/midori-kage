@@ -45,28 +45,29 @@ export async function getContactInfo(rawName: string): Promise<ContactInfo> {
 }
 
 const findMessageContainer = (): HTMLElement | null => {
-    // Try primary selector first
-    const container = document.querySelector<HTMLElement>(SELECTORS.message_container);
-    if (container) return container;
+    // Strategy 1: Use Global Main Element Context
+    const mainEl = findMainElement();
+    if (mainEl) {
+        // Look strictly INSIDE the identified main panel
+        const container = mainEl.querySelector<HTMLElement>(SELECTORS.message_container);
+        if (container) return container;
+
+        const ariaMsg = mainEl.querySelector<HTMLElement>('div[aria-label="Message list"]');
+        if (ariaMsg) return ariaMsg;
+        
+        // Tallest sibling strategy scoped to mainEl
+        const children = Array.from(mainEl.children) as HTMLElement[];
+        return children.reduce<HTMLElement | null>((tallest, child) => {
+             // Exclude Header and Footer/Input container (if it's a child)
+             if (child.tagName === 'HEADER' || child.querySelector('div[role="textbox"]')) return tallest;
+             if (!tallest) return child;
+             return child.clientHeight > tallest.clientHeight ? child : tallest;
+        }, null);
+    }
     
-    // Fallback: finding by Aria Label
-    const ariaMsg = document.querySelector<HTMLElement>('div[aria-label="Message list"]');
-    if (ariaMsg) return ariaMsg;
-
-    const input = document.querySelector<HTMLElement>('div[role="textbox"]');
-    if (!input) return null;
-
-    const footer = input.closest('footer');
-    if (!footer || !footer.parentElement) return null;
-
-    const children = Array.from(footer.parentElement.children) as HTMLElement[];
-    
-    // Functional reduce to find tallest sibling
-    return children.reduce<HTMLElement | null>((tallest, child) => {
-        if (child === footer || child.tagName === 'HEADER') return tallest;
-        if (!tallest) return child;
-        return child.clientHeight > tallest.clientHeight ? child : tallest;
-    }, null);
+    // Fallback: Global search (Old strategy)
+    return document.querySelector<HTMLElement>(SELECTORS.message_container) || 
+           document.querySelector<HTMLElement>('div[aria-label="Message list"]');
 };
 
 export async function getMessages(): Promise<ChatMessage[]> {
