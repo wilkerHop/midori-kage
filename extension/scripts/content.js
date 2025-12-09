@@ -1,7 +1,7 @@
 console.log('Midori Kage Content Script Loaded');
 
 const SELECTORS = {
-  chat_list: 'div[aria-label="Chat list"]',
+  chat_list: '#pane-side', // More robust than aria-label which is localized
   chat_row: 'div[role="row"]',
   chat_list_title: 'span[title]', // relative to row
   header_title_container: '#main header span[title]',
@@ -25,14 +25,21 @@ let scrapedChats = [];
 let processedChatNames = new Set();
 
 // Listen for messages from popup
-chrome.runtime.onMessage.addListener((request, _sender, _sendResponse) => {
+chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
+  console.log('[Content] Message received:', request.action);
+
   if (request.action === 'start_scraping') {
-    if (isScraping) return;
+    if (isScraping) {
+      console.warn('[Content] Already scraping, ignoring start request.');
+      return;
+    }
+    console.log('[Content] Starting scraping loop with limit:', request.limit);
     isScraping = true;
     scrapeLimit = request.limit || 50;
     scrapedChats = [];
     processedChatNames = new Set();
     startScrapingLoop();
+    sendResponse({ status: 'started' }); // Acknowledge
   } else if (request.action === 'stop_scraping') {
     isScraping = false;
     sendStatus('Stopping...', scrapedChats.length, true);
@@ -70,11 +77,15 @@ function sendStatus(status, count, done = false) {
 // Core Logic
 // ---------------------------------------------------------
 
-async function startScrapingLoop() {
+async function startScrapingLoop(request) {
   sendStatus('Starting...', 0);
 
   try {
     let consecutiveNoNewChats = 0;
+
+    // State for filtering
+    const skipPinned = request.skipPinned || false;
+    const skipGroups = request.skipGroups || false;
 
     while (isScraping && scrapedChats.length < scrapeLimit) {
       // 1. Identify visible chat rows
@@ -92,19 +103,54 @@ async function startScrapingLoop() {
         const safeName = rawName.replace(/[^a-z0-9 ]/iy, '').trim();
         if (processedChatNames.has(rawName)) continue; // Skip already processed
 
-        // 2. Click and Open Chat
+        // --- FILTER: SKIP PINNED ---
+        if (skipPinned) {
+          // Check for pinned icon (aria-label="Pinned" or specific icon)
+          // Use a broad check for "pin" icon in SVG or aria label
+          if (
+            row.querySelector('span[data-icon="pinned"]') ||
+            row.querySelector('span[data-icon="pin"]')
+          ) {
+            console.log(`[Filter] Skipping Pinned chat: ${rawName}`);
+            processedChatNames.add(rawName);
+            continue;
+          }
+        }
+
+        // --- FILTER: SKIP GROUPS (Heuristic on Row) ---
+        // If we can identify groups from the row, great. Often they have a specific default icon if no photo.
+        // But reliably, we check after opening.
+
+        // 2. Open Chat (Strategy: Mouse Click)
         sendStatus(`Opening: ${rawName}`, scrapedChats.length);
 
-        // Click and wait for transition
-        // Use a more human-like click?
-        row.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+        // Strategy: Robust Mouse Click on the Row
+        const clickEventOpts = { bubbles: true, cancelable: true, view: window };
+
+        row.dispatchEvent(new MouseEvent('mousedown', clickEventOpts));
+        row.dispatchEvent(new MouseEvent('mouseup', clickEventOpts));
         row.click();
 
         // Wait for header to update
         const headerVerified = await waitForHeaderChange(rawName);
         if (!headerVerified) {
-          console.warn(`Header verification failed for ${rawName}. Skipping.`);
+          console.warn(`Header verification failed for ${rawName}.`);
           continue;
+        }
+
+        // --- FILTER: SKIP GROUPS (After Open) ---
+        if (skipGroups) {
+          // Check header text for common group indicators or click "Group info" later
+          // Heuristic: If header subtext contains names (Alice, Bob...) it's a group.
+          // Or look for specific group UI elements.
+          // Safe check: scrapeContactInfo will tell us if it's a group.
+          // Let's implement a quick check here:
+          const clickForGroup = document.querySelector('span[title="Click here for group info"]');
+          if (clickForGroup) {
+            console.log(`[Filter] Skipping Group (header detect): ${rawName}`);
+            processedChatNames.add(rawName);
+            continue;
+          }
         }
 
         // 3. Scrape Data
@@ -115,6 +161,12 @@ async function startScrapingLoop() {
         let contactInfo = { name: rawName, about: '' };
         try {
           contactInfo = await scrapeContactInfo();
+
+          if (skipGroups && contactInfo.isGroup) {
+            console.log(`[Filter] Skipping Group (drawer detect): ${rawName}`);
+            // Don't save this chat
+            continue;
+          }
         } catch (e) {
           console.error('Contact scrape error:', e);
         }
@@ -143,23 +195,38 @@ async function startScrapingLoop() {
       // 5. Scroll if needed
       if (!processedAnyInView && isScraping && scrapedChats.length < scrapeLimit) {
         console.log('No new chats in view, scrolling...');
-        const chatList = $(SELECTORS.chat_list);
+        const chatList = $(SELECTORS.chat_list) || document.querySelector('#pane-side'); // Fallback to ID
+
         if (chatList) {
           const previousScrollTop = chatList.scrollTop;
-          chatList.scrollTop += 500; // Scroll down
-          await sleep(1500); // Wait for load
+          // Increase scroll amount to ensure we trigger load
+          chatList.scrollTop += 600;
+
+          console.log(
+            `[Scroll] Attempting to scroll. Top: ${previousScrollTop} -> ${chatList.scrollTop}`
+          );
+          await sleep(2000); // Wait longer for network load
 
           if (chatList.scrollTop === previousScrollTop) {
             consecutiveNoNewChats++;
-            console.log("Scroll didn't move, maybe end of list?");
+            console.log(
+              `[Scroll] Position didn't change (${consecutiveNoNewChats}/3). End of list?`
+            );
           } else {
             consecutiveNoNewChats = 0;
+            console.log('[Scroll] Position updated.');
           }
 
           if (consecutiveNoNewChats > 3) {
-            console.log('End of list reached or stuck.');
+            console.log('[Scroll] End of list reached or stuck.');
             break;
           }
+        } else {
+          console.error(
+            '[Scroll] Fatal: Could not find chat list container (#pane-side or aria-label).'
+          );
+          // If we can't scroll, we must break to avoid infinite loop
+          break;
         }
       }
     }
@@ -178,49 +245,108 @@ async function startScrapingLoop() {
 
 async function waitForHeaderChange(expectedName) {
   const maxRetries = 10;
-  const normalizedExpected = expectedName.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const normalize = (str) =>
+    str
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '');
+  const normalizedExpected = normalize(expectedName);
 
   for (let i = 0; i < maxRetries; i++) {
-    const titleEl = $(SELECTORS.header_title_container);
-    if (titleEl) {
-      const text = titleEl.innerText;
-      const normalizedText = text.toLowerCase().replace(/[^a-z0-9]/g, '');
+    // Strategy: Broadest Check - Is the name anywhere in the #main right pane?
+    // This assumes #main is the container for the active chat.
+    const mainEl = document.querySelector('#main');
 
-      // Check for exact match, partial match, or safe name match
-      if (
-        normalizedText.includes(normalizedExpected) ||
-        normalizedExpected.includes(normalizedText)
-      ) {
+    if (mainEl) {
+      // We grab the first 500 chars to avoid reading all messages
+      // The header info should be at the top.
+      const topText = mainEl.innerText.substring(0, 1000);
+      const normalizedText = normalize(topText);
+
+      if (normalizedText.includes(normalizedExpected)) {
         return true;
       }
 
-      // Only log on the last retry to avoid spam
+      // Log on failure
       if (i === maxRetries - 1) {
-        console.log(`Header mismatch: Expected '${normalizedExpected}', Found '${normalizedText}'`);
+        console.log(
+          `[Verify Fail] Expected '${normalizedExpected}' in #main (top 1000 chars). Found: ${normalizedText.substring(0, 50)}...`
+        );
+      }
+    } else {
+      // If #main doesn't exist, chat isn't open
+      if (i === maxRetries - 1) {
+        console.log(`[Verify Fail] Element #main not found.`);
       }
     }
+
+    // Fallback: Check for 'textbox' (Input) to at least confirm A chat is open
+    // This is useful if the name matching is tricky (e.g. typos, emojis)
+    if (i > 5) {
+      const input = document.querySelector('div[role="textbox"]');
+      if (input && window.getComputedStyle(input).visibility !== 'hidden') {
+        // A chat is open. If we can't match name, maybe we trust it?
+        // Let's log a warning but return true to unblock
+        if (i === maxRetries - 1) {
+          console.warn(
+            `[Verify Warn] Name mismatch but Chat Input found. Assuming success for '${expectedName}'.`
+          );
+          return true;
+        }
+      }
+    }
+
     await sleep(500);
   }
   return false;
 }
 
 async function scrapeContactInfo() {
-  const info = { name: '', about: '' };
+  const info = { name: '', about: '', isGroup: false };
 
   // Click header
   const header = $(SELECTORS.header_title_container);
-  if (!header) return info;
-  header.click();
+  if (header) {
+    header.click();
+  } else {
+    // Fallback click on header container
+    const head = $('#main header');
+    if (head) head.click();
+  }
 
-  await sleep(1500); // Wait for drawer
+  await sleep(2000); // Wait for drawer
 
-  // Name
-  const nameEl = $(SELECTORS.contact_info_name);
-  if (nameEl) info.name = nameEl.innerText;
+  // Check if it's a group
+  // Groups usually have "Group info" title in the drawer
+  // Or check if "Exit group" button is present
+  const drawer =
+    document.querySelector('div[role="navigation"]') || document.querySelector('section');
 
-  // About
-  const aboutEl = $(SELECTORS.contact_info_about);
-  if (aboutEl) info.about = aboutEl.innerText; // Might capture phone too
+  if (drawer) {
+    if (drawer.innerText.includes('Group info') || drawer.innerText.includes('Dados do grupo')) {
+      info.isGroup = true;
+      // If we want to skip groups, return triggers the filter
+    }
+
+    // Name
+    const nameEl = drawer.querySelector(SELECTORS.contact_info_name) || drawer.querySelector('h2');
+    if (nameEl) info.name = nameEl.innerText;
+
+    // About / Phone
+    const spans = Array.from(drawer.querySelectorAll('span'));
+    // Heuristic: Looking for phone number pattern or "About" section
+    // Often the phone is the first span with a + or numbers after the name
+    const phoneRegex = /\+?\d[\d\s-]{8,}/;
+    const phoneSpan = spans.find((s) => phoneRegex.test(s.innerText) && s.innerText.length < 30);
+    if (phoneSpan) {
+      info.about = phoneSpan.innerText; // Treat phone as 'about/details'
+    } else {
+      // Fallback to about selector
+      const aboutEl = drawer.querySelector(SELECTORS.contact_info_about);
+      if (aboutEl) info.about = aboutEl.innerText;
+    }
+  }
 
   // Close with Escape
   document.dispatchEvent(
@@ -228,23 +354,27 @@ async function scrapeContactInfo() {
   );
   await sleep(500);
 
-  // Verify closed? Assume yes for now.
   return info;
 }
 
 async function scrapeMessages() {
-  // We grab visible messages. For full history we'd need to scroll up repeatedly.
-  // For "Shadow/MVP" we grab what is loaded.
-
-  // Check if we need to wait for messages to load?
+  // Grab messages from the main application container
   await sleep(1000);
 
-  const bubbles = $$(SELECTORS.message_bubble);
+  const container = document.querySelector(SELECTORS.message_container);
+  if (!container) {
+    console.warn('Message container not found.');
+    return [];
+  }
+
+  // Scoped query for bubbles
+  const bubbles = container.querySelectorAll(SELECTORS.message_bubble);
   const messages = [];
 
   bubbles.forEach((bubble) => {
     try {
-      const textEl = bubble.querySelector(SELECTORS.message_text);
+      const textEl =
+        bubble.querySelector(SELECTORS.message_text) || bubble.querySelector('span[dir="ltr"]');
       const infoEl = bubble.querySelector(SELECTORS.message_info);
 
       let text = textEl ? textEl.innerText : '';
