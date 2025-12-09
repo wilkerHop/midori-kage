@@ -14,5 +14,11 @@
       "matches": ["https://web.whatsapp.com/*"],
       "js": ["src/scripts/content.ts"]
     }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["src/scripts/injector.ts"],
+      "matches": ["https://web.whatsapp.com/*"]
+    }
   ]
 }

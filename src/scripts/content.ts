@@ -1,6 +1,25 @@
 import { createScraperEngine } from '../core/engine';
+
 // Actually, downloadData should be extracted to 'DataExporter' or 'utils' 
 // Let's create a small local one or import { createScraperEngine } from '../core/engine';
+
+// Inject the Main World script
+const injectScript = () => {
+    const script = document.createElement('script');
+    script.src = chrome.runtime.getURL('src/scripts/injector.ts');
+    script.onload = () => script.remove();
+    (document.head || document.documentElement).appendChild(script);
+    console.log('[Midori] Injector script injected.');
+};
+
+injectScript();
+
+// Listen for messages from the injected script (Main World)
+window.addEventListener('message', (event) => {
+    if (event.data.type === 'MIDORI_INJECTION_SUCCESS') {
+        console.log('[Midori] Content Script received success signal:', event.data.payload);
+    }
+});
 
 console.log('[Midori Kage TS] Content Script Loaded');
 
