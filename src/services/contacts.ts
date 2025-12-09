@@ -1,6 +1,7 @@
 import { SELECTORS } from '../config/selectors';
 import { ContactInfo } from '../types';
 import { sleep } from '../utils/common';
+import { Mouse } from '../utils/mouse';
 import { findMainElement } from './dom';
 
 export async function getContactInfo(rawName: string): Promise<ContactInfo> {
@@ -14,7 +15,7 @@ export async function getContactInfo(rawName: string): Promise<ContactInfo> {
     }
 
     // console.log(`[Extractor] Clicking header for "${rawName}"...`);
-    header.click();
+    await Mouse.simulateClick(header);
     await sleep(2000);
 
     const drawer = document.querySelector<HTMLElement>('div[role="navigation"]') || document.querySelector<HTMLElement>('section');
