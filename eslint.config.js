@@ -1,25 +1,28 @@
-const globals = require("globals");
-const js = require("@eslint/js");
-const prettier = require("eslint-plugin-prettier/recommended");
+import js from '@eslint/js'
+import reactHooks from 'eslint-plugin-react-hooks'
+import reactRefresh from 'eslint-plugin-react-refresh'
+import { defineConfig, globalIgnores } from 'eslint/config'
+import globals from 'globals'
+import tseslint from 'typescript-eslint'
 
-module.exports = [
-  js.configs.recommended,
-  prettier,
+export default defineConfig([
+  globalIgnores(['dist']),
   {
+    files: ['**/*.{ts,tsx}'],
+    extends: [
+      js.configs.recommended,
+      tseslint.configs.recommended,
+      reactHooks.configs.flat.recommended,
+      reactRefresh.configs.vite,
+    ],
     languageOptions: {
-      ecmaVersion: 2021,
-      sourceType: "module",
-      globals: {
-        ...globals.browser,
-        ...globals.webextensions,
-        chrome: "readonly",
-        SELECTORS: "readonly",
-        module: "readonly"
-      }
+      ecmaVersion: 2020,
+      globals: globals.browser,
     },
     rules: {
-      "no-unused-vars": ["warn", { "varsIgnorePattern": "^_" }],
-      "no-console": "off"
-    }
-  }
-];
+      '@typescript-eslint/no-explicit-any': 'error',
+      '@typescript-eslint/no-unused-vars': ['error', { 'argsIgnorePattern': '^_' }],
+      'eqeqeq': 'error',
+    },
+  },
+])
