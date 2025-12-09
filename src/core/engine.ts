@@ -1,22 +1,25 @@
 import { ScrapedChat, ScrapingRequest } from '../types';
 import { runScrapingLoop } from './loop';
+import { LoopState } from './processor';
 
 export function createScraperEngine() {
-    let isRunning = false;
-    let processedChatNames = new Set<string>();
-    let scrapedChats: ScrapedChat[] = [];
-    let limit = 50;
+    // Mutable state container (No reassignment)
+    const state = {
+        isRunning: false,
+        scrapedChats: [] as ScrapedChat[],
+        processedChatNames: new Set<string>()
+    };
 
-    const stop = () => { isRunning = false; };
-    const getStatus = () => { return { isRunning, count: scrapedChats.length, chats: scrapedChats }; };
-    const checkRunning = () => isRunning;
+    const stop = () => { state.isRunning = false; };
+    const getStatus = () => ({ isRunning: state.isRunning, count: state.scrapedChats.length, chats: state.scrapedChats });
+    const checkRunning = () => state.isRunning;
 
     const sendStatus = (status: string, done = false) => {
         try {
             chrome.runtime.sendMessage({ 
                 action: 'status_update', 
                 status, 
-                count: scrapedChats.length, 
+                count: state.scrapedChats.length, 
                 done 
             }, () => { 
                 if (chrome.runtime.lastError) { /* Ignore */ } 
@@ -25,22 +28,26 @@ export function createScraperEngine() {
     };
 
     const start = async (request: ScrapingRequest) => {
-        if (isRunning) return; 
+        if (state.isRunning) return; 
         
-        isRunning = true;
-        limit = request.limit || 50;
-        scrapedChats = [];
-        processedChatNames = new Set();
+        state.isRunning = true;
+        state.scrapedChats.length = 0; // Clear array in-place
+        state.processedChatNames.clear();
 
         sendStatus('Starting...', false);
 
+        const loopState: LoopState = {
+            limit: request.limit || 50,
+            skipPinned: request.skipPinned || false,
+            skipGroups: request.skipGroups || false,
+            scrapedChats: state.scrapedChats, // Shared reference
+            processedChatNames: state.processedChatNames,
+            consecutiveNoScroll: 0
+        };
+
         try {
             await runScrapingLoop(
-                limit, 
-                request.skipPinned || false, 
-                request.skipGroups || false,
-                scrapedChats,
-                processedChatNames,
+                loopState,
                 checkRunning,
                 (s) => sendStatus(s, false)
             );
@@ -49,7 +56,7 @@ export function createScraperEngine() {
             sendStatus('Error occurred', true);
         }
 
-        isRunning = false;
+        state.isRunning = false;
         sendStatus('Done', true);
     };
 

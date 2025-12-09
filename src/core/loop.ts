@@ -1,90 +1,43 @@
-import { SELECTORS } from '../config/selectors';
-import { getContactInfo, getMessages } from '../services/extractor';
-import { getChatRows, scrollChatList, waitForHeaderChange } from '../services/navigator';
-import { ScrapedChat } from '../types';
-import { sleep } from '../utils/common';
+import { getChatRows, scrollChatList } from '../services/navigator';
+import { LoopState, processRow } from './processor';
 
-export async function runScrapingLoop(
-    limit: number,
-    skipPinned: boolean,
-    skipGroups: boolean,
-    scrapedChats: ScrapedChat[],
-    processedChatNames: Set<string>,
-    getStatus: () => boolean, 
+// Recursive Batch Processor
+const processBatch = async (
+    rows: HTMLElement[], 
+    index: number, 
+    processedInBatch: boolean,
+    state: LoopState,
+    checkRunning: () => boolean,
     sendStatus: (s: string) => void
-) {
-    let consecutiveNoScroll = 0;
+): Promise<boolean> => {
+    if (!checkRunning() || state.scrapedChats.length >= state.limit) return processedInBatch;
+    if (index >= rows.length) return processedInBatch;
 
-    while (getStatus() && scrapedChats.length < limit) {
-        const rows = getChatRows();
-        let processedAnyInView = false;
+    const processed = await processRow(rows[index], state, sendStatus);
+    return processBatch(rows, index + 1, processedInBatch || processed, state, checkRunning, sendStatus);
+};
 
-        for (const row of rows) {
-            if (!getStatus() || scrapedChats.length >= limit) break;
+// Main Recursive Loop
+export async function runScrapingLoop(
+    state: LoopState,
+    checkRunning: () => boolean, 
+    sendStatus: (s: string) => void
+): Promise<void> {
+    if (!checkRunning() || state.scrapedChats.length >= state.limit) return; // Base case
 
-            const titleEl = row.querySelector<HTMLElement>(SELECTORS.chat_list_title);
-            if (!titleEl) continue;
+    const rows = getChatRows();
+    const processedAny = await processBatch(rows, 0, false, state, checkRunning, sendStatus);
 
-            const rawName = titleEl.innerText.trim();
-            if (processedChatNames.has(rawName)) continue;
+    if (!processedAny) {
+         const moved = await scrollChatList();
+         if (moved) state.consecutiveNoScroll = 0;
+         else state.consecutiveNoScroll++;
 
-            // Filter: Pinned
-            if (skipPinned) {
-                 const pinned = row.querySelector('span[data-icon="pinned"]') || 
-                                row.querySelector('span[data-icon="pin"]') ||
-                                row.innerHTML.includes('aria-label="pinned"');
-                 if (pinned) {
-                     processedChatNames.add(rawName);
-                     continue;
-                 }
-            }
-
-            sendStatus(`Opening: ${rawName}`);
-            
-            // Click
-            const opts = { bubbles: true, cancelable: true, view: window };
-            row.dispatchEvent(new MouseEvent('mousedown', opts));
-            row.dispatchEvent(new MouseEvent('mouseup', opts));
-            row.click();
-
-            const verified = await waitForHeaderChange(rawName);
-            if (!verified) console.warn(`Header verification failed: ${rawName}`);
-
-            // Filter: Groups (Header/Drawer)
-            if (skipGroups) {
-                const groupHeader = document.querySelector('span[title="Click here for group info"]');
-                if (groupHeader) { processedChatNames.add(rawName); continue; }
-            }
-
-            processedChatNames.add(rawName);
-            processedAnyInView = true;
-
-            // Extract
-            const contactInfo = await getContactInfo(rawName);
-            if (skipGroups && contactInfo.isGroup) continue;
-
-            const messages = await getMessages();
-
-            scrapedChats.push({
-                chat_name: rawName,
-                safe_name: rawName.replace(/[^a-z0-9]/gi, ''),
-                contact_info: contactInfo,
-                messages
-            });
-
-            sendStatus(`Scraped: ${rawName}`);
-            await sleep(1000 + Math.random() * 1000);
-        }
-
-        if (!processedAnyInView && getStatus()) {
-             const moved = await scrollChatList();
-             if (moved) consecutiveNoScroll = 0;
-             else consecutiveNoScroll++;
-
-             if (consecutiveNoScroll > 3) {
-                 console.log('End of list reached or scroll stuck.');
-                 break;
-             }
-        }
+         if (state.consecutiveNoScroll > 3) {
+             console.log('End of list reached or scroll stuck.');
+             return;
+         }
     }
+
+    return runScrapingLoop(state, checkRunning, sendStatus); // Tail recursion
 }
