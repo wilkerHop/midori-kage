@@ -29,7 +29,9 @@ jobs:
       run: npm test
 
     - name: Check Sins (Strict)
-      run: ./scripts/check-sins.sh
+      run: |
+        chmod +x ./scripts/check-sins.sh
+        ./scripts/check-sins.sh
 
     - name: Build Extension
       run: npm run build
