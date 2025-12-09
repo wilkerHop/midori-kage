@@ -47,12 +47,20 @@ const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => document.querySelectorAll(selector);
 
 function sendStatus(status, count, done = false) {
-  chrome.runtime.sendMessage({
-    action: 'status_update',
-    status: status,
-    count: count,
-    done: done,
-  });
+  try {
+    chrome.runtime.sendMessage({
+      action: 'status_update',
+      status: status,
+      count: count,
+      done: done,
+    }, (_response) => {
+       if (chrome.runtime.lastError) {
+           // Popup closed, ignore
+       }
+    });
+  } catch (_e) {
+      // Ignore
+  }
 }
 
 // ---------------------------------------------------------
@@ -166,14 +174,23 @@ async function startScrapingLoop() {
 // ---------------------------------------------------------
 
 async function waitForHeaderChange(expectedName) {
-  // Wait up to 5 seconds for header to contain expectedName
   const maxRetries = 10;
+  const normalizedExpected = expectedName.toLowerCase().replace(/[^a-z0-9]/g, '');
+  
   for (let i = 0; i < maxRetries; i++) {
     const titleEl = $(SELECTORS.header_title_container);
     if (titleEl) {
       const text = titleEl.innerText;
-      if (text.includes(expectedName) || expectedName.includes(text)) {
+      const normalizedText = text.toLowerCase().replace(/[^a-z0-9]/g, '');
+      
+      // Check for exact match, partial match, or safe name match
+      if (normalizedText.includes(normalizedExpected) || normalizedExpected.includes(normalizedText)) {
         return true;
+      }
+      
+      // Only log on the last retry to avoid spam
+      if (i === maxRetries - 1) {
+          console.log(`Header mismatch: Expected '${normalizedExpected}', Found '${normalizedText}'`);
       }
     }
     await sleep(500);
