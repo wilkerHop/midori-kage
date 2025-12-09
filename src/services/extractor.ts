@@ -1,12 +1,14 @@
 import { SELECTORS } from '../config/selectors';
 import { ChatMessage, ContactInfo } from '../types';
 import { sleep } from '../utils/common';
+import { findMainElement } from './navigator';
 
 export async function getContactInfo(rawName: string): Promise<ContactInfo> {
-    // Try specifically the title span first, fallback to generic header
-    const header = document.querySelector<HTMLElement>(SELECTORS.header_title_container);
+    const mainEl = findMainElement();
+    const header = mainEl ? mainEl.querySelector<HTMLElement>('header') : document.querySelector<HTMLElement>('header');
+    
     if (!header) {
-        console.error(`[Extractor] Contact Header NOT found for "${rawName}"`);
+        console.error(`[Extractor] Contact Header NOT found for "${rawName}". MainEl found: ${!!mainEl}`);
         return { name: rawName, about: '', isGroup: false };
     }
 
