@@ -38,7 +38,7 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
     scrapeLimit = request.limit || 50;
     scrapedChats = [];
     processedChatNames = new Set();
-    startScrapingLoop();
+    startScrapingLoop(request);
     sendResponse({ status: 'started' }); // Acknowledge
   } else if (request.action === 'stop_scraping') {
     isScraping = false;
