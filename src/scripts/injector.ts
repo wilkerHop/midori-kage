@@ -58,7 +58,7 @@ const findModules = (chunk: any) => {
                          console.log('[Midori] Found Chat Store:', id);
                          WPP.chat = mod.default.Chat;
                     }
-                } catch (e) {
+                } catch {
                     // ignore
                 }
             });
@@ -77,10 +77,7 @@ const setupMidoriApi = () => {
             const wid = chatId.includes('@') ? chatId : `${chatId}@c.us`;
             
             // We usually need the Chat Model, not just ID
-            let chatModel = null;
-            if (WPP.chat) {
-                chatModel = WPP.chat.get(wid);
-            }
+            const chatModel = WPP.chat ? WPP.chat.get(wid) : null;
             
             if (WPP.cmd.openChatAt) {
                  console.log(`[Midori] Opening ${wid} via openChatAt...`);
