@@ -3,10 +3,16 @@ import { $, $$, normalizeText, sleep } from '../utils/common';
 
 const findMainElement = (): HTMLElement | null => {
   const mainEl = document.querySelector<HTMLElement>('#main');
-  if (mainEl) return mainEl;
+  if (mainEl) {
+      if (!mainEl.innerText.trim()) console.warn(`[Nav] Found #main but it is empty. Classes: ${mainEl.className}`);
+      return mainEl;
+  }
 
   const input = document.querySelector<HTMLElement>('div[role="textbox"]');
-  if (!input) return null;
+  if (!input) {
+      console.warn('[Nav] No input found (div[role="textbox"]).');
+      return null;
+  }
 
   const potentialMain = input.closest('main') as HTMLElement | null;
   if (potentialMain) return potentialMain;

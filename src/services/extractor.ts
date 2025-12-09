@@ -4,17 +4,25 @@ import { $, sleep } from '../utils/common';
 
 export async function getContactInfo(rawName: string): Promise<ContactInfo> {
     const header = $(SELECTORS.header_title_container) || $('#main header');
-    if (!header) return { name: rawName, about: '', isGroup: false };
+    if (!header) {
+        console.error(`[Extractor] Contact Header NOT found for "${rawName}"`);
+        return { name: rawName, about: '', isGroup: false };
+    }
 
+    console.log(`[Extractor] Clicking header for "${rawName}"...`);
     header.click();
     await sleep(2000);
 
     const drawer = document.querySelector<HTMLElement>('div[role="navigation"]') || document.querySelector<HTMLElement>('section');
     if (!drawer) {
+        console.error(`[Extractor] Drawer NOT found after click for "${rawName}"`);
         // Close drawer attempt just in case
         document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true }));
         return { name: rawName, about: '', isGroup: false };
     }
+    
+    // Log drawer content for debugging
+    console.log(`[Extractor] Drawer Text (Preview): ${drawer.innerText.substring(0, 100)}...`);
 
     const isGroup = drawer.innerText.includes('Group info') || drawer.innerText.includes('Dados do grupo');
     const nameEl = drawer.querySelector<HTMLElement>(SELECTORS.contact_info_name) || drawer.querySelector<HTMLElement>('h2');
