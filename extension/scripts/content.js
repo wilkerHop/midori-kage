@@ -256,7 +256,19 @@ async function waitForHeaderChange(expectedName) {
   for (let i = 0; i < maxRetries; i++) {
     // Strategy: Broadest Check - Is the name anywhere in the #main right pane?
     // This assumes #main is the container for the active chat.
-    const mainEl = document.querySelector('#main');
+    let mainEl = document.querySelector('#main');
+
+    // Fallback: If #main is renamed/missing, find the parent of the input box
+    if (!mainEl) {
+      const input = document.querySelector('div[role="textbox"]');
+      if (input) {
+        // Usually input -> footer -> main -> app
+        // Traverse up to find a large container
+        mainEl =
+          input.closest('main') || input.closest('div[data-testid="conversation-panel-wrapper"]');
+        // Or just check if input is visible, we act as if "main" is the document body part on right
+      }
+    }
 
     if (mainEl) {
       // We grab the first 500 chars to avoid reading all messages
@@ -361,9 +373,26 @@ async function scrapeMessages() {
   // Grab messages from the main application container
   await sleep(1000);
 
-  const container = document.querySelector(SELECTORS.message_container);
+  let container = document.querySelector(SELECTORS.message_container);
+
+  // Method 2: Fallback - look for the 'focus-lock-parent' or similar structure
+  // or simply find where the message rows are.
   if (!container) {
-    console.warn('Message container not found.');
+    // Find ANY div that looks like the message list (contains rows and is in right pane)
+    const allRows = Array.from(document.querySelectorAll('div[role="row"]'));
+    // Filter rows that are in the right pane
+    const threshold = window.innerWidth * 0.35;
+    const rightPaneRows = allRows.filter((r) => r.getBoundingClientRect().left > threshold);
+
+    if (rightPaneRows.length > 0) {
+      // The container is likely the parent of these rows
+      container = rightPaneRows[0].parentElement;
+      console.log('[Scraper] Found fallback message container via rows.');
+    }
+  }
+
+  if (!container) {
+    console.warn('Message container not found (strict or fallback).');
     return [];
   }
 
