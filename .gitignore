@@ -9,7 +9,8 @@ npm-debug.log
 extension/dist/
 
 # Output
-*.json
+chats/*.json
+legacy/chats/*.json
 
 # Private
 session/

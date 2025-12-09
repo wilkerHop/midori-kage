@@ -13,7 +13,8 @@ module.exports = [
         ...globals.browser,
         ...globals.webextensions,
         chrome: "readonly",
-        SELECTORS: "readonly"
+        SELECTORS: "readonly",
+        module: "readonly"
       }
     },
     rules: {

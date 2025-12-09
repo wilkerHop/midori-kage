@@ -4,7 +4,9 @@
   "description": "A Chrome Extension (Manifest V3) for scraping WhatsApp Web chats and extracting contact details.",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jest && ./scripts/check-sins.sh && ./scripts/check-test-coverage.sh",
+    "lint": "eslint extension/ && prettier --check extension/",
+    "check-all": "npm run lint && npm test"
   },
   "repository": {
     "type": "git",
@@ -22,6 +24,8 @@
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.4",
     "globals": "^16.5.0",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0",
     "prettier": "^3.7.4"
   }
 }
