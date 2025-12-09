@@ -10,6 +10,12 @@ if grep -rE "eslint-disable|@ts-ignore|@ts-nocheck|@ts-expect-error" src/; then
   exit 1
 fi
 
+# 2. Check for mutability (let/var)
+if grep -rE "let |var " src/; then
+  echo "Found sins! Mutability (let/var) is forbidden."
+  exit 1
+fi
+
 echo "No sins found!"
 
 # 2. Check for large files (>100 lines) - Warning only per user request
