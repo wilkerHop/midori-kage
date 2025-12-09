@@ -106,11 +106,19 @@ async function startScrapingLoop(request) {
         // --- FILTER: SKIP PINNED ---
         if (skipPinned) {
           // Check for pinned icon (aria-label="Pinned" or specific icon)
-          // Use a broad check for "pin" icon in SVG or aria label
-          if (
+          // Localized checks for Portuguese and English
+          const pinnedIcon =
             row.querySelector('span[data-icon="pinned"]') ||
-            row.querySelector('span[data-icon="pin"]')
-          ) {
+            row.querySelector('span[data-icon="pin"]');
+
+          // Check aria-labels in the row content
+          const rowText = row.innerHTML.toLowerCase();
+          const isPinnedText =
+            rowText.includes('aria-label="pinned"') ||
+            rowText.includes('aria-label="fixa') || // fixada, fixado
+            rowText.includes('data-icon="pinned"');
+
+          if (pinnedIcon || isPinnedText) {
             console.log(`[Filter] Skipping Pinned chat: ${rawName}`);
             processedChatNames.add(rawName);
             continue;
@@ -371,14 +379,54 @@ async function scrapeContactInfo() {
 
 async function scrapeMessages() {
   // Grab messages from the main application container
-  await sleep(1000);
+  await sleep(1500); // Increased wait time
 
   let container = document.querySelector(SELECTORS.message_container);
+
+  // Strategy: Footer Sibling
+  // If we can't find the container directly, find the Footer (via Input) and go up/prev.
+  if (!container) {
+    const input = document.querySelector('div[role="textbox"]');
+    if (input) {
+      // Input is usually inside a footer structure:
+      // footer -> ... -> input
+      const footer = input.closest('footer');
+      if (footer) {
+        // The message list is usually the previous sibling of the footer
+        // or in a wrapper effectively previous to footer
+        let sibling = footer.previousElementSibling;
+        if (sibling) {
+          container = sibling;
+          console.log('[Scraper] Found fallback message container via Footer Sibling.');
+        }
+      } else {
+        // Try identifying the main pane via input closest 'main'
+        // and assuming the last large div before footer is messages
+        const main = input.closest('#main') || input.closest('main');
+        if (main) {
+          // Look for the largest div in main?
+          // Heuristic: Message list is usually the tallest element
+          const divs = Array.from(main.querySelectorAll('div'));
+          let tallest = null;
+          let maxH = 0;
+          divs.forEach((d) => {
+            if (d.clientHeight > maxH && d !== footer) {
+              maxH = d.clientHeight;
+              tallest = d;
+            }
+          });
+          if (tallest) {
+            container = tallest;
+            console.log('[Scraper] Found fallback message container via Tallest Div.');
+          }
+        }
+      }
+    }
+  }
 
   // Method 2: Fallback - look for the 'focus-lock-parent' or similar structure
   // or simply find where the message rows are.
   if (!container) {
-    // Find ANY div that looks like the message list (contains rows and is in right pane)
     const allRows = Array.from(document.querySelectorAll('div[role="row"]'));
     // Filter rows that are in the right pane
     const threshold = window.innerWidth * 0.35;
@@ -392,22 +440,38 @@ async function scrapeMessages() {
   }
 
   if (!container) {
-    console.warn('Message container not found (strict or fallback).');
+    // Last resort: Print structure for user to debug
+    console.warn('Message container not found. Dumping accessible inputs for debug:');
+    const inputs = document.querySelectorAll('div[role="textbox"]');
+    console.log('Inputs found:', inputs.length);
     return [];
   }
 
   // Scoped query for bubbles
+  // If our container is "Main", we might need to be careful not to grab sidebar stuff
+  // But SELECTORS.message_bubble is usually specific enough (div role row)
   const bubbles = container.querySelectorAll(SELECTORS.message_bubble);
+  // Also try generic class query if role fails
+  const messageDivs =
+    bubbles.length > 0 ? bubbles : container.querySelectorAll('div.message-in, div.message-out');
+
   const messages = [];
 
-  bubbles.forEach((bubble) => {
+  (bubbles.length > 0 ? bubbles : messageDivs).forEach((bubble) => {
     try {
       const textEl =
         bubble.querySelector(SELECTORS.message_text) || bubble.querySelector('span[dir="ltr"]');
-      const infoEl = bubble.querySelector(SELECTORS.message_info);
+      const infoEl =
+        bubble.querySelector(SELECTORS.message_info) ||
+        bubble.querySelector('div[data-pre-plain-text]');
 
       let text = textEl ? textEl.innerText : '';
       let info = infoEl ? infoEl.getAttribute('data-pre-plain-text') : '';
+
+      // If strict selectors fail, try just grabbing all text
+      if (!text && !info) {
+        text = bubble.innerText.clean();
+      }
 
       if (text || info) {
         messages.push({
@@ -420,6 +484,7 @@ async function scrapeMessages() {
     }
   });
 
+  console.log(`[Scraper] Extracted ${messages.length} messages.`);
   return messages;
 }
 
