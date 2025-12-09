@@ -13,7 +13,7 @@ declare global {
     };
     MidoriExtractor: {
       getContactInfo: (name: string) => Promise<unknown>;
-      getMessages: () => Promise<unknown[]>;
+      getMessages: (chatId: string) => Promise<unknown[]>;
     };
     webpackChunkwhatsapp_web_client?: unknown[];
   }

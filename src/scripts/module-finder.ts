@@ -38,7 +38,9 @@ const findModules = (chunk: unknown[]) => {
                     if (mod.default?.Chat) WPP.chat = mod.default.Chat;
                     if (mod.default?.Msg) WPP.msg = mod.default.Msg;
                     if (mod.default?.Contact) WPP.contact = mod.default.Contact;
-                } catch { /* ignore */ }
+                } catch (e) { 
+                    console.debug('[Midori] Module Scan Error (Expected):', e);
+                }
             });
             setupMidoriApi();
         }
@@ -96,7 +98,9 @@ const setupMidoriApi = () => {
                      try {
                         const msgs = MsgStore.getByChatId(realId);
                         if(msgs && msgs.all) return msgs.all() as unknown[];
-                     } catch { /* ignore */ }
+                     } catch (e) {
+                         console.warn('[Midori] MsgStore Fallback Failed:', e);
+                     }
                      return [];
                 };
 
