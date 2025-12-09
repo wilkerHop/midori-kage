@@ -6,6 +6,8 @@ npm-debug.log
 .DS_Store
 
 # Extension
+# Build
+dist/
 extension/dist/
 
 # Output
