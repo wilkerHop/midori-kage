@@ -17,14 +17,35 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   startBtn.addEventListener('click', () => {
+    console.log('[Popup] Start button clicked');
     const limit = parseInt(limitInput.value) || 50;
+    const skipPinned = document.getElementById('skipPinned').checked;
+    const skipGroups = document.getElementById('skipGroups').checked;
 
     // Send message to content script
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      chrome.tabs.sendMessage(tabs[0].id, {
-        action: 'start_scraping',
-        limit: limit,
-      });
+      if (!tabs[0]) {
+        console.error('[Popup] No active tab found!');
+        return;
+      }
+      console.log('[Popup] Sending start_scraping message to tab:', tabs[0].id);
+      chrome.tabs.sendMessage(
+        tabs[0].id,
+        {
+          action: 'start_scraping',
+          limit: limit,
+          skipPinned: skipPinned,
+          skipGroups: skipGroups,
+        },
+        (response) => {
+          if (chrome.runtime.lastError) {
+            console.error('[Popup] Send error:', chrome.runtime.lastError.message);
+            statusText.textContent = 'Error: Refresh Web Page';
+          } else {
+            console.log('[Popup] Message sent, response:', response);
+          }
+        }
+      );
       setRunningState(true);
       statusText.textContent = 'Scraping started...';
     });
