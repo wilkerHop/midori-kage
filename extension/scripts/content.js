@@ -111,6 +111,14 @@ async function startScrapingLoop(request) {
             row.querySelector('span[data-icon="pinned"]') ||
             row.querySelector('span[data-icon="pin"]');
 
+          // Debug: Log the first few rows to see what the pinned icon looks like
+          if (scrapedChats.length < 3) {
+            console.log(
+              `[Row Debug] Name: ${rawName} | HTML:`,
+              row.innerHTML.substring(0, 300) + '...'
+            );
+          }
+
           // Check aria-labels in the row content
           const rowText = row.innerHTML.toLowerCase();
           const isPinnedText =
@@ -383,42 +391,36 @@ async function scrapeMessages() {
 
   let container = document.querySelector(SELECTORS.message_container);
 
-  // Strategy: Footer Sibling
-  // If we can't find the container directly, find the Footer (via Input) and go up/prev.
+  // Strategy: Footer Sibling (Tallest Sibling)
+  // If we can't find the container directly, find the Footer (via Input) and look for the main message area.
   if (!container) {
     const input = document.querySelector('div[role="textbox"]');
     if (input) {
-      // Input is usually inside a footer structure:
-      // footer -> ... -> input
       const footer = input.closest('footer');
-      if (footer) {
-        // The message list is usually the previous sibling of the footer
-        // or in a wrapper effectively previous to footer
-        let sibling = footer.previousElementSibling;
-        if (sibling) {
-          container = sibling;
-          console.log('[Scraper] Found fallback message container via Footer Sibling.');
-        }
-      } else {
-        // Try identifying the main pane via input closest 'main'
-        // and assuming the last large div before footer is messages
-        const main = input.closest('#main') || input.closest('main');
-        if (main) {
-          // Look for the largest div in main?
-          // Heuristic: Message list is usually the tallest element
-          const divs = Array.from(main.querySelectorAll('div'));
-          let tallest = null;
-          let maxH = 0;
-          divs.forEach((d) => {
-            if (d.clientHeight > maxH && d !== footer) {
-              maxH = d.clientHeight;
-              tallest = d;
-            }
-          });
-          if (tallest) {
-            container = tallest;
-            console.log('[Scraper] Found fallback message container via Tallest Div.');
+      if (footer && footer.parentElement) {
+        // The message list is the biggest element that is not the footer.
+        const children = Array.from(footer.parentElement.children);
+        let maxH = 0;
+        let candidate = null;
+
+        console.log(`[Scraper Debug] Footer parent has ${children.length} children.`);
+
+        for (const child of children) {
+          if (child === footer) continue;
+          if (child.tagName === 'HEADER') continue;
+
+          const h = child.clientHeight;
+          // console.log(`[Scraper Debug] Sibling tag=${child.tagName} class=${child.className} height=${h}`);
+
+          if (h > maxH) {
+            maxH = h;
+            candidate = child;
           }
+        }
+
+        if (candidate) {
+          container = candidate;
+          console.log('[Scraper] Found fallback message container via Tallest Sibling strategy.');
         }
       }
     }
