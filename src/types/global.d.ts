@@ -7,6 +7,8 @@ declare global {
       whatsapp: unknown;
       chat: unknown;
       cmd: unknown;
+      msg: unknown;
+      contact: unknown;
       openChat: (chatId: string) => Promise<boolean>;
     };
     MidoriExtractor: {

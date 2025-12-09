@@ -1,6 +1,6 @@
 import { SELECTORS } from '../config/selectors';
+import { Bridge } from '../services/bridge';
 import { getContactInfo, getMessages } from '../services/extractor';
-import { waitForHeaderChange } from '../services/navigator';
 import { ScrapedChat } from '../types';
 import { sleep } from '../utils/common';
 
@@ -38,35 +38,34 @@ export const processRow = async (
 
     // 2. Interaction
     sendStatus(`Opening: ${rawName}`);
-    const opts = { bubbles: true, cancelable: true, view: window };
-    row.dispatchEvent(new MouseEvent('mousedown', opts));
-    row.dispatchEvent(new MouseEvent('mouseup', opts));
-    row.click();
-
-    const verified = await waitForHeaderChange(rawName);
-    if (!verified) console.warn(`Header verification failed: ${rawName}`);
+    // Replace brittle DOM click and header wait with robust Bridge Open
+    const opened = await Bridge.openChat(rawName);
+    if (!opened) {
+        console.warn(`[Processor] Bridge failed to open chat: "${rawName}"`);
+        // Fallback or skip? Assuming skip.
+        // We could try click as fallback, but let's trust the Bridge or nothing.
+        return false;
+    }
+    
+    await sleep(500); // Small buffer for render/state update
 
     // 3. Group Check (Post-Click)
-    if (state.skipGroups) {
-        // Expanded selectors for group detection
-        const groupHeader = document.querySelector('span[title="Click here for group info"]') || 
-                            document.querySelector('div[role="button"][title*="group"]') ||
-                            document.querySelector('span[data-icon="default-group"]'); // Icon check
-        
-        if (groupHeader) { 
-            console.log(`[Skipping] Group detected (Header): "${rawName}"`);
-            state.processedChatNames.add(rawName); 
-            return false; 
-        }
+    // Note: getContactInfo via Bridge does NOT need the drawer open.
+    // But the group skipping logic in processor relies on `state.skipGroups` and DOM checks.
+    // Let's rely on `getContactInfo` returning `isGroup`.
+    
+    // 4. Extraction
+    const contactInfo = await getContactInfo(rawName);
+    if (state.skipGroups && contactInfo.isGroup) {
+        console.log(`[Skipping] Group detected (Bridge): "${rawName}"`);
+        state.processedChatNames.add(rawName);
+        return false;
     }
 
     state.processedChatNames.add(rawName);
 
-    // 4. Extraction
-    const contactInfo = await getContactInfo(rawName);
-    if (state.skipGroups && contactInfo.isGroup) return false;
-
-    const messages = await getMessages();
+    // Pass the name to getMessages
+    const messages = await getMessages(rawName);
 
     state.scrapedChats.push({
         chat_name: rawName,
