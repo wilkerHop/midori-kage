@@ -3,16 +3,16 @@ export { };
 declare global {
   interface Window {
     Midori: {
-      webpack: any;
-      whatsapp: any;
-      chat: any;
-      cmd: any;
+      webpack: unknown;
+      whatsapp: unknown;
+      chat: unknown;
+      cmd: unknown;
       openChat: (chatId: string) => Promise<boolean>;
     };
     MidoriExtractor: {
-      getContactInfo: (name: string) => Promise<any>;
-      getMessages: () => Promise<any[]>;
+      getContactInfo: (name: string) => Promise<unknown>;
+      getMessages: () => Promise<unknown[]>;
     };
-    webpackChunkwhatsapp_web_client?: any[];
+    webpackChunkwhatsapp_web_client?: unknown[];
   }
 }
