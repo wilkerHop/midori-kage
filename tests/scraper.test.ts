@@ -34,10 +34,8 @@ describe('Scraper Logic', () => {
     const promise = waitForHeaderChange('Bob');
     
     // Fast-forward time
-    // Fast-forward time (Sequential wait)
-    for (const _ of Array.from({ length: 11 })) {
-        await vi.advanceTimersByTimeAsync(500);
-    }
+    // Fast-forward time safely past the retry limit (10 * 500ms = 5000ms)
+    await vi.advanceTimersByTimeAsync(10000);
 
     const result = await promise;
     expect(result).toBe(false);
