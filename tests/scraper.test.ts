@@ -34,7 +34,8 @@ describe('Scraper Logic', () => {
     const promise = waitForHeaderChange('Bob');
     
     // Fast-forward time
-    for (let i = 0; i < 11; i++) {
+    // Fast-forward time (Sequential wait)
+    for (const _ of Array.from({ length: 11 })) {
         await vi.advanceTimersByTimeAsync(500);
     }
 
