@@ -23,6 +23,17 @@ export default defineConfig([
       '@typescript-eslint/no-explicit-any': 'error',
       '@typescript-eslint/no-unused-vars': ['error', { 'argsIgnorePattern': '^_' }],
       'eqeqeq': 'error',
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'VariableDeclaration[kind="let"]',
+          message: 'Mutability is forbidden. Use const instead of let.',
+        },
+        {
+          selector: 'VariableDeclaration[kind="var"]',
+          message: 'Mutability is forbidden. Use const instead of var.',
+        }
+      ],
     },
   },
 ])

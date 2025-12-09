@@ -10,11 +10,7 @@ if grep -rE "eslint-disable|@ts-ignore|@ts-nocheck|@ts-expect-error" src/; then
   exit 1
 fi
 
-# 2. Check for mutability (let/var)
-if grep -rE "let |var " src/; then
-  echo "Found sins! Mutability (let/var) is forbidden."
-  exit 1
-fi
+# 2. Check for mutability (let/var) is handled by ESLint now!
 
 echo "No sins found!"
 
