@@ -30,6 +30,7 @@ export const processRow = async (
                         row.querySelector('span[data-icon="pin"]') ||
                         row.innerHTML.includes('aria-label="pinned"');
          if (pinned) {
+             console.log(`[Skipping] Pinned chat detected: "${rawName}"`);
              state.processedChatNames.add(rawName);
              return false;
          }
@@ -47,8 +48,13 @@ export const processRow = async (
 
     // 3. Group Check (Post-Click)
     if (state.skipGroups) {
-        const groupHeader = document.querySelector('span[title="Click here for group info"]');
+        // Expanded selectors for group detection
+        const groupHeader = document.querySelector('span[title="Click here for group info"]') || 
+                            document.querySelector('div[role="button"][title*="group"]') ||
+                            document.querySelector('span[data-icon="default-group"]'); // Icon check
+        
         if (groupHeader) { 
+            console.log(`[Skipping] Group detected (Header): "${rawName}"`);
             state.processedChatNames.add(rawName); 
             return false; 
         }

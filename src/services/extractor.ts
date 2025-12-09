@@ -57,7 +57,10 @@ export async function getMessages(): Promise<ChatMessage[]> {
     await sleep(1500);
     const container = findMessageContainer();
 
-    if (!container) return [];
+    if (!container) {
+        console.error('[Extractor] Message container NOT found.');
+        return [];
+    }
 
     const bubbles = container.querySelectorAll<HTMLElement>(SELECTORS.message_bubble);
     const messageDivs = bubbles.length > 0 ? bubbles : container.querySelectorAll<HTMLElement>('div.message-in, div.message-out');

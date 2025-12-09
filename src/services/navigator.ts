@@ -28,7 +28,7 @@ const checkHeader = async (expected: string, attempt: number, maxRetries: number
       const input = document.querySelector<HTMLElement>('div[role="textbox"]');
       if (input && window.getComputedStyle(input).visibility !== 'hidden') {
           if (attempt === maxRetries - 1) {
-              console.warn(`[Nav] Name mismatch but Chat Input visible. Trusting state.`);
+              console.warn(`[Nav] Name mismatch. Expected: "${expected}". Found in Header: "${normalizeText(mainEl?.innerText || '')}". Chat Input visible. Trusting state.`);
               return true;
           }
       }
