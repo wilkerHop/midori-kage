@@ -1,7 +1,7 @@
 import { SELECTORS } from '../config/selectors';
 import { ContactInfo } from '../types';
 import { sleep } from '../utils/common';
-import { findMainElement } from './navigator';
+import { findMainElement } from './dom';
 
 export async function getContactInfo(rawName: string): Promise<ContactInfo> {
     const mainEl = findMainElement();

@@ -1,5 +1,6 @@
 import { SELECTORS } from '../config/selectors';
 import { $, $$, normalizeText, sleep } from '../utils/common';
+import { logMismatch } from '../utils/logger';
 import { Bridge } from './bridge';
 
 export async function selectChat(row: HTMLElement): Promise<boolean> {
@@ -29,42 +30,9 @@ export async function selectChat(row: HTMLElement): Promise<boolean> {
    return true; // Assume click worked for now, validation happens later
 }
 
-export const findMainElement = (): HTMLElement | null => {
-  const input = document.querySelector<HTMLElement>('div[role="textbox"]');
-  if (input) {
-      const findChatPanel = (el: HTMLElement | null, depth: number): HTMLElement | null => {
-          if (!el || depth > 15) return null;
-          
-          const hasHeader = el.querySelector(':scope > header') || el.querySelector('header');
-          if (hasHeader) {
-               // CRITICAL: Ensure we haven't gone too high and captured the sidebar
-               // Sidebar usually has 'Search' or 'Pesquisar' inputs or text near the top
-               // But we are in the chat panel. 
-               // Heuristic: Chat Panel usually has a MESSAGE LIST sibling.
-               const hasMsgList = el.querySelector('div[aria-label="Message list"]');
-               const hasSidebarParams = el.innerText.includes('Pesquisar') || el.innerText.includes('Search');
-               
-               // Ideally, we want the node that Has Header AND Has Message List
-               // AND explicitly does NOT look like the sidebar
-               if (hasMsgList && !hasSidebarParams) return el;
-               
-               // If no message list found yet (Aria label might be gone), 
-               // but we have a header and NO sidebar text, this is a strong candidate for #main.
-               if (hasHeader && !hasSidebarParams) return el;
-          }
-          return findChatPanel(el.parentElement, depth + 1);
-      };
-      
-      const panel = findChatPanel(input.parentElement, 0);
-      if (panel) return panel;
-  }
+import { findMainElement } from './dom';
 
-  // Strategy 2: Standard #main (Fallback)
-  const mainEl = document.querySelector<HTMLElement>('#main');
-  if (mainEl) return mainEl;
-
-  return null;
-};
+export { findMainElement }; // Re-export if needed, or just let consumers import from dom
 
 const checkHeader = async (expected: string, attempt: number, maxRetries: number): Promise<boolean> => {
   if (attempt >= maxRetries) return false;
@@ -74,19 +42,9 @@ const checkHeader = async (expected: string, attempt: number, maxRetries: number
     const headerTitle = mainEl.querySelector('header h2 span') as HTMLElement || mainEl.querySelector('header span[title]') as HTMLElement;
     const topText = headerTitle ? headerTitle.innerText : mainEl.innerText.substring(0, 1000);
     
-    // DEBUG: Only log on last retry or total mismatch
+    
     if (attempt === maxRetries - 1 && !normalizeText(topText).includes(expected)) {
-         console.warn(`[Nav] Mismatch Details -> Expected: "${expected}" | TopText: "${normalizeText(topText)}" | HeaderTitle: "${headerTitle ? headerTitle.innerText : 'N/A'}"`);
-         
-         // 1. Dump classes to see if we are in the right element
-         console.warn(`[Nav] MainEl Classes: ${mainEl.className} | ID: ${mainEl.id}`);
-         
-         // 2. Dump first 500 chars of HTML
-         console.warn(`[Nav] Main Element Dump:`, mainEl.innerHTML.substring(0, 500));
-         
-         // 3. Dump the header specifically if found
-         const header = mainEl.querySelector('header');
-         if (header) console.warn('[Nav] Header Dump:', header.innerHTML);
+         logMismatch(expected, normalizeText(topText), headerTitle ? headerTitle.innerText : 'N/A', mainEl);
     }
 
     if (normalizeText(topText).includes(expected)) return true;

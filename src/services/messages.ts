@@ -1,7 +1,7 @@
 import { SELECTORS } from '../config/selectors';
 import { ChatMessage } from '../types';
 import { sleep } from '../utils/common';
-import { findMainElement } from './navigator';
+import { findMainElement } from './dom';
 
 const findMessageContainer = (): HTMLElement | null => {
     const mainEl = findMainElement();
