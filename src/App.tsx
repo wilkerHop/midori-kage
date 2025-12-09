@@ -8,9 +8,9 @@ function App() {
   const [isScraping, setIsScraping] = useState(false);
   const [statusText, setStatusText] = useState('Ready');
   const [progressCount, setProgressCount] = useState(0);
-  const [limit, setLimit] = useState(50);
-  const [skipPinned, setSkipPinned] = useState(false);
-  const [skipGroups, setSkipGroups] = useState(false);
+  const [limit, setLimit] = useState(15);
+  const [skipPinned, setSkipPinned] = useState(true);
+  const [skipGroups, setSkipGroups] = useState(true);
   const [canDownload, setCanDownload] = useState(false);
 
   useEffect(() => {
