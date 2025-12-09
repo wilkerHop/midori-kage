@@ -5,18 +5,14 @@ export const findMainElement = (): HTMLElement | null => {
   // Strategy 1: Anchor on the Visible Input (Proven to work)
   const input = document.querySelector<HTMLElement>('div[role="textbox"]');
   if (input) {
-      let parent = input.parentElement;
-      // Traverse up to 10 levels to find the container that holds the header
-      for (let i = 0; i < 10; i++) {
-          if (!parent) break;
-          // The main panel usually contains a <header> and the footer/input
-          const header = parent.querySelector('header');
-          if (header) {
-              // console.log(`[Nav] Found Main Container via Input Traversal (Level ${i})`);
-              return parent;
-          }
-          parent = parent.parentElement;
-      }
+      const findParentWithHeader = (el: HTMLElement | null, depth: number): HTMLElement | null => {
+          if (!el || depth > 10) return null;
+          if (el.querySelector(':scope > header') || el.querySelector('header')) return el;
+          return findParentWithHeader(el.parentElement, depth + 1);
+      };
+      
+      const distinctParent = findParentWithHeader(input.parentElement, 0);
+      if (distinctParent) return distinctParent;
   }
 
   // Strategy 2: Standard #main (Fallback)
