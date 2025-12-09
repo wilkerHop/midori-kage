@@ -1,23 +1,23 @@
 import { SELECTORS } from '../config/selectors';
 import { $, $$, normalizeText, sleep } from '../utils/common';
 
-const findMainElement = (): HTMLElement | null => {
+export const findMainElement = (): HTMLElement | null => {
+  // Strategy 1: Look for the footer/input first (since we know it's visible) and go up
+  const input = document.querySelector<HTMLElement>('footer div[role="textbox"]');
+  if (input) {
+      // Traverse up to find the main container (usually a sibling of the footer's parent or part of the same flex column)
+      const footer = input.closest('footer');
+      if (footer && footer.parentElement) {
+          // Log only once per session/call to avoid spam, or rely on caller logs
+          return footer.parentElement; 
+      }
+  }
+
+  // Strategy 2: Standard #main
   const mainEl = document.querySelector<HTMLElement>('#main');
-  if (mainEl) {
-      if (!mainEl.innerText.trim()) console.warn(`[Nav] Found #main but it is empty. Classes: ${mainEl.className}`);
-      return mainEl;
-  }
+  if (mainEl && mainEl.innerText.trim()) return mainEl;
 
-  const input = document.querySelector<HTMLElement>('div[role="textbox"]');
-  if (!input) {
-      console.warn('[Nav] No input found (div[role="textbox"]).');
-      return null;
-  }
-
-  const potentialMain = input.closest('main') as HTMLElement | null;
-  if (potentialMain) return potentialMain;
-
-  return input.closest('div[data-testid="conversation-panel-wrapper"]') as HTMLElement | null;
+  return null;
 };
 
 const checkHeader = async (expected: string, attempt: number, maxRetries: number): Promise<boolean> => {
@@ -31,6 +31,9 @@ const checkHeader = async (expected: string, attempt: number, maxRetries: number
     // Log the specific text we are checking against
     if (attempt === maxRetries - 1 && !normalizeText(topText).includes(expected)) {
          console.warn(`[Nav] Mismatch Details -> Expected: "${expected}" | TopText: "${normalizeText(topText)}" | HeaderTitle: "${headerTitle ? headerTitle.innerText : 'N/A'}"`);
+         // DUMP THE DOM to find out what is actually there!
+         if (mainEl) console.warn(`[Nav] Main Element Dump:`, mainEl.innerHTML.substring(0, 500));
+         if (headerTitle) console.warn(`[Nav] Header Title Dump:`, headerTitle.outerHTML);
     }
 
     if (normalizeText(topText).includes(expected)) return true;
