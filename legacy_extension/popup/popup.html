@@ -1,0 +1,33 @@
+<!doctype html>
+<html>
+  <head>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <div class="container">
+      <h2>Midori Kage</h2>
+      <div class="controls">
+        <button id="startBtn" class="btn primary">Start Scraping</button>
+        <button id="stopBtn" class="btn danger" disabled>Stop</button>
+        <button id="downloadBtn" class="btn secondary" disabled>Download JSON</button>
+      </div>
+
+      <div class="control-group">
+        <label> <input type="checkbox" id="skipPinned" /> Skip Pinned </label>
+        <label> <input type="checkbox" id="skipGroups" /> Skip Groups </label>
+      </div>
+
+      <div class="status-box">
+        <div id="statusText">Ready</div>
+        <div id="progress">0 chats scraped</div>
+      </div>
+
+      <div class="settings">
+        <label>
+          Limit: <input type="number" id="limitInput" value="50" style="width: 50px" />
+        </label>
+      </div>
+    </div>
+    <script src="popup.js"></script>
+  </body>
+</html>
