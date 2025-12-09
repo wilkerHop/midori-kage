@@ -6,7 +6,7 @@ export interface WebpackModule {
 // Ensure global types are picked up
 /// <reference path="../types/global.d.ts" />
 
-const WPP = {
+const WPP: Window['Midori'] = {
     webpack: undefined,
     whatsapp: undefined,
     chat: undefined,
@@ -31,18 +31,18 @@ const inject = () => {
     }, 1000);
 };
 
-const findModules = (chunk: any[]) => {
+const findModules = (chunk: unknown[]) => {
     console.log('[Midori] Scanning modules...');
     
     chunk.push([
         ['midori-injector'], 
         {}, 
-        (require: any) => {
+        (require: { m: Record<string, unknown>; (id: string): unknown }) => {
             const modules = require.m; // All modules
             
             Object.keys(modules).forEach((id) => {
                 try {
-                    const mod = require(id);
+                    const mod = require(id) as { default?: { openChatAt?: unknown; openChat?: unknown; Chat?: unknown } };
                     if (!mod) return;
                     
                     if (mod.default && mod.default.openChatAt) {
