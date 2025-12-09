@@ -30,6 +30,16 @@ export async function getMessages(): Promise<ChatMessage[]> {
 
     if (!container) {
         console.error('[Extractor] Message container NOT found.');
+        
+        // Debug: Dump mainEl children
+        const mainEl = findMainElement();
+        if(mainEl) {
+             console.log(`[Extractor] MainEl Children: ${mainEl.children.length}`);
+             Array.from(mainEl.children).forEach(c => console.log(` - Child: ${c.tagName} | Class: ${c.className}`));
+        } else {
+             console.log('[Extractor] MainEl is NULL during message extraction.');
+        }
+        
         return [];
     }
 

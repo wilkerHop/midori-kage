@@ -8,7 +8,8 @@ export async function getContactInfo(rawName: string): Promise<ContactInfo> {
     const header = mainEl ? mainEl.querySelector<HTMLElement>('header') : document.querySelector<HTMLElement>('header');
     
     if (!header) {
-        console.error(`[Extractor] Contact Header NOT found for "${rawName}".`);
+        console.error(`[Extractor] Contact Header NOT found for "${rawName}". MainEl found: ${!!mainEl}`);
+        if(mainEl) console.log(`[Extractor] MainEl children: ${mainEl.children.length}`);
         return { name: rawName, about: '', isGroup: false };
     }
 
@@ -19,6 +20,12 @@ export async function getContactInfo(rawName: string): Promise<ContactInfo> {
     const drawer = document.querySelector<HTMLElement>('div[role="navigation"]') || document.querySelector<HTMLElement>('section');
     if (!drawer) {
         console.error(`[Extractor] Drawer NOT found for "${rawName}"`);
+        console.log('[Extractor] Checking for any open drawers or panels...');
+        
+        // Debug: Dump body classes or overlay presence
+        const overlays = document.querySelectorAll('div[data-animate-modal-popup]');
+        if(overlays.length > 0) console.log(`[Extractor] Found ${overlays.length} modal popups.`);
+        
         document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true }));
         return { name: rawName, about: '', isGroup: false };
     }

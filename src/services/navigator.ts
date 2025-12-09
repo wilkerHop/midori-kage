@@ -71,19 +71,27 @@ const checkHeader = async (expected: string, attempt: number, maxRetries: number
 
   const mainEl = findMainElement();
   if (mainEl) {
-    // Try structural path (Header -> H2 -> Span) or Title attribute
     const headerTitle = mainEl.querySelector('header h2 span') as HTMLElement || mainEl.querySelector('header span[title]') as HTMLElement;
-    const topText = headerTitle ? headerTitle.innerText : mainEl.innerText.substring(0, 1000); // Fallback to full text
+    const topText = headerTitle ? headerTitle.innerText : mainEl.innerText.substring(0, 1000);
     
-    // Log the specific text we are checking against
+    // DEBUG: Only log on last retry or total mismatch
     if (attempt === maxRetries - 1 && !normalizeText(topText).includes(expected)) {
          console.warn(`[Nav] Mismatch Details -> Expected: "${expected}" | TopText: "${normalizeText(topText)}" | HeaderTitle: "${headerTitle ? headerTitle.innerText : 'N/A'}"`);
-         // DUMP THE DOM to find out what is actually there!
-         if (mainEl) console.warn(`[Nav] Main Element Dump:`, mainEl.innerHTML.substring(0, 500));
-         if (headerTitle) console.warn(`[Nav] Header Title Dump:`, headerTitle.outerHTML);
+         
+         // 1. Dump classes to see if we are in the right element
+         console.warn(`[Nav] MainEl Classes: ${mainEl.className} | ID: ${mainEl.id}`);
+         
+         // 2. Dump first 500 chars of HTML
+         console.warn(`[Nav] Main Element Dump:`, mainEl.innerHTML.substring(0, 500));
+         
+         // 3. Dump the header specifically if found
+         const header = mainEl.querySelector('header');
+         if (header) console.warn('[Nav] Header Dump:', header.innerHTML);
     }
 
     if (normalizeText(topText).includes(expected)) return true;
+  } else {
+      console.warn(`[Nav] checkHeader: findMainElement() returned NULL`);
   }
 
   // Graceful fallback for visible input
