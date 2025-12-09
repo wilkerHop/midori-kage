@@ -1,19 +1,8 @@
 import { useEffect, useState } from 'react';
-
-// Types
-interface ScrapingRequest {
-  action: 'start_scraping' | 'stop_scraping' | 'download_data';
-  limit?: number;
-  skipPinned?: boolean;
-  skipGroups?: boolean;
-}
-
-interface StatusMessage {
-  action: 'status_update';
-  status: string;
-  count: number;
-  done: boolean;
-}
+import { ControlPanel } from './components/ControlPanel';
+import { SettingsPanel } from './components/SettingsPanel';
+import { StatusPanel } from './components/StatusPanel';
+import { ScrapingRequest, StatusMessage } from './types';
 
 function App() {
   const [isScraping, setIsScraping] = useState(false);
@@ -24,19 +13,15 @@ function App() {
   const [skipGroups, setSkipGroups] = useState(false);
   const [canDownload, setCanDownload] = useState(false);
 
-  // Load state on mount
   useEffect(() => {
     chrome.storage.local.get(['isScraping', 'scrapeCount'], (result: { isScraping?: boolean; scrapeCount?: number }) => {
       if (result.isScraping) {
         setIsScraping(true);
         setStatusText('Resuming...');
       }
-      if (result.scrapeCount !== undefined) {
-        setProgressCount(result.scrapeCount);
-      }
+      if (result.scrapeCount !== undefined) setProgressCount(result.scrapeCount);
     });
 
-    // Listen for messages from content script
     const listener = (
       message: StatusMessage, 
       _sender: chrome.runtime.MessageSender, 
@@ -44,9 +29,7 @@ function App() {
     ) => {
       if (message.action === 'status_update') {
         setStatusText(message.status);
-        if (message.count !== undefined) {
-          setProgressCount(message.count);
-        }
+        if (message.count !== undefined) setProgressCount(message.count);
         if (message.done) {
           setIsScraping(false);
           setCanDownload(true);
@@ -61,18 +44,9 @@ function App() {
 
   const handleStart = async () => {
     const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!tabs[0]?.id) {
-      setStatusText('Error: No active tab');
-      return;
-    }
+    if (!tabs[0]?.id) return setStatusText('Error: No active tab');
 
-    const payload: ScrapingRequest = {
-      action: 'start_scraping',
-      limit,
-      skipPinned,
-      skipGroups
-    };
-
+    const payload: ScrapingRequest = { action: 'start_scraping', limit, skipPinned, skipGroups };
     chrome.tabs.sendMessage(tabs[0].id, payload, (response) => {
       if (chrome.runtime.lastError) {
         console.error(chrome.runtime.lastError);
@@ -99,72 +73,21 @@ function App() {
 
   const handleDownload = async () => {
     const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (tabs[0]?.id) {
-      chrome.tabs.sendMessage(tabs[0].id, { action: 'download_data' });
-    }
+    if (tabs[0]?.id) chrome.tabs.sendMessage(tabs[0].id, { action: 'download_data' });
   };
 
   return (
     <div className="container">
       <h2>Midori Kage (TS)</h2>
-      
-      <div className="controls">
-        <button 
-          className="btn primary" 
-          onClick={handleStart} 
-          disabled={isScraping}
-        >
-          Start Scraping
-        </button>
-        <button 
-          className="btn danger" 
-          onClick={handleStop} 
-          disabled={!isScraping}
-        >
-          Stop
-        </button>
-        <button 
-          className="btn secondary" 
-          onClick={handleDownload} 
-          disabled={!canDownload && isScraping}
-        >
-          Download JSON
-        </button>
-      </div>
-
-      <div className="control-group">
-        <label>
-          <input 
-            type="checkbox" 
-            checked={skipPinned} 
-            onChange={(e) => setSkipPinned(e.target.checked)} 
-          /> Skip Pinned
-        </label>
-        <label>
-          <input 
-            type="checkbox" 
-            checked={skipGroups} 
-            onChange={(e) => setSkipGroups(e.target.checked)} 
-          /> Skip Groups
-        </label>
-      </div>
-
-      <div className="status-box">
-        <div id="statusText">{statusText}</div>
-        <div id="progress">{progressCount} chats scraped</div>
-      </div>
-
-      <div className="settings">
-        <label>
-          Limit: 
-          <input 
-            type="number" 
-            value={limit} 
-            onChange={(e) => setLimit(parseInt(e.target.value) || 50)}
-            style={{ width: '50px', marginLeft: '5px' }} 
-          />
-        </label>
-      </div>
+      <ControlPanel 
+        isScraping={isScraping} canDownload={canDownload}
+        onStart={handleStart} onStop={handleStop} onDownload={handleDownload} 
+      />
+      <SettingsPanel 
+        limit={limit} skipPinned={skipPinned} skipGroups={skipGroups}
+        onLimitChange={setLimit} onSkipPinnedChange={setSkipPinned} onSkipGroupsChange={setSkipGroups}
+      />
+      <StatusPanel statusText={statusText} progressCount={progressCount} />
     </div>
   );
 }

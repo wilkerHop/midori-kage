@@ -21,6 +21,7 @@ if [ ! -z "$large_files" ]; then
   echo "WARNING: The following files exceed $limit lines. Consider abstracting logic:"
   echo "$large_files"
   echo ""
-  # echo "Strict mode: Exiting 1 (Uncomment to enforce)"
-  # exit 1 
+  echo ""
+  echo "STRICT MODE: Exiting 1 due to large files."
+  exit 1 
 fi

@@ -36,3 +36,17 @@ export interface Selectors {
   contact_info_about: string;
   contact_drawer_close_btn: string;
 }
+// Re-export existing or add new ones to avoid duplicates if checked
+export interface ScrapingRequest {
+  action: 'start_scraping' | 'stop_scraping' | 'download_data';
+  limit?: number;
+  skipPinned?: boolean;
+  skipGroups?: boolean;
+}
+
+export interface StatusMessage {
+  action: 'status_update';
+  status: string;
+  count: number;
+  done: boolean;
+}
